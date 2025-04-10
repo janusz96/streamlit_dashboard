@@ -5,7 +5,7 @@ import numpy as np
 import re
 from datetime import date
 from datetime import time as datetime_time
-from paths import *
+from ..paths import *
 
 czas_bez_pracy_minuty = 945
 przerwy_dict = {
