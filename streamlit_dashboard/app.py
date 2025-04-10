@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import datetime as dt
-from data_functions import *
+from streamlit_dashboard.data_functions import *
 from paths import *
 
 st.set_page_config(page_title="Dashboard", layout="wide")
