@@ -10,7 +10,7 @@ st.set_page_config(page_title="Dashboard", layout="wide")
 st.title("📊 Analiza czasu pracy tapicerów")
 st.sidebar.header("Filtry")
 
-df_tapicernia_czasy = load_data(path_raw_data, "czas tapicernia")
+df_tapicernia_czasy = load_data("1Sb83J6VAINiYC5oGDVAxNM7NFiPq5j6r", "czas tapicernia")
 df_tapicernia_czasy = update_data(df_tapicernia_czasy)
 
 first_date = df_tapicernia_czasy['Start'].min()

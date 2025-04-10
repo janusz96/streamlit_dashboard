@@ -27,9 +27,10 @@ przerwy_dict = {
     (date(2024, 12, 20), date(2025, 1, 7)): ('po swietach 2024', 17)
 }
 
-def load_data(path, sheet):
+def load_data(file_id, sheet):
+    gdrive_url = f"https://drive.google.com/uc?export=download&id={file_id}"
     try:
-        df = pd.read_excel(path, sheet_name=sheet)
+        df = pd.read_excel(gdrive_url, sheet_name=sheet)
         return df
     except FileNotFoundError:
         st.error(f"Nie znaleziono pliku: {path}")
