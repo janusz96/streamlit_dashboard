@@ -3,7 +3,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import numpy as np
 import re
-from datetime import date
+from datetime import date, timedelta
 from datetime import time as datetime_time
 from paths import *
 
@@ -33,7 +33,7 @@ def load_data(file_id, sheet):
         df = pd.read_excel(gdrive_url, sheet_name=sheet)
         return df
     except FileNotFoundError:
-        st.error(f"Nie znaleziono pliku: {path}")
+        st.error(f"Nie znaleziono pliku")
         return None
 
 def update_data(df):
@@ -51,7 +51,9 @@ def update_data(df):
 
 def create_grouped_df(df):
     df = load_grouped_data(df)
-    analiza_komisji(df)
+    df = filter_grouped_data(df)
+    # df = filter_grouped_data_description(df)
+    # analiza_komisji(df)
     return df
 
 def remove_useless_columns(df):
@@ -64,7 +66,7 @@ def remove_useless_columns(df):
 def sort_data_by_name(df):
     df = df.sort_values(by=['Nazwisko', 'Start'])
     df = df.reset_index(drop=True)
-    st.write("Sortowanie zakończone.")
+    # st.write("Sortowanie zakończone.")
     return df
 
 def add_material_info(df, path):
@@ -126,26 +128,26 @@ def add_model_bryla_column(df):
             bryla = '[' + bryla[:-1]
         return bryla
     
-    st.write(f"Modele wyłączone z analizy to {modele_do_usuniecia}")
-    st.write(f"Liczba wierszy przed usunięciem modeli to {len(df)}")
+    # st.write(f"Modele wyłączone z analizy to {modele_do_usuniecia}")
+    # st.write(f"Liczba wierszy przed usunięciem modeli to {len(df)}")
 
     df['model'] = df['Artykul nazwa'].apply(extract_model)
-    df = df[~df['model'].isin(modele_do_usuniecia)]
+    # df = df[~df['model'].isin(modele_do_usuniecia)]
 
-    st.write(f"Liczba wierszy po usunięciu modeli to {len(df)}")
+    # st.write(f"Liczba wierszy po usunięciu modeli to {len(df)}")
 
     rozkład_modele = df.groupby('model').size().reset_index(name='Ilość')
     rozkład_modele = rozkład_modele.sort_values(by='Ilość', ascending=False)
-    st.write("Rozkład ilościowy modeli:")
-    st.dataframe(rozkład_modele)
-    st.write("Najczęciej występujące artykul_nazwa w brak_modelu:")
-    st.write (df[df['model'] == 'brak_modelu']['Artykul nazwa'].value_counts().head(10))
+    # st.write("Rozkład ilościowy modeli:")
+    # st.dataframe(rozkład_modele)
+    # st.write("Najczęciej występujące artykul_nazwa w brak_modelu:")
+    # st.write (df[df['model'] == 'brak_modelu']['Artykul nazwa'].value_counts().head(10))
 
     df['bryla'] = df['Artykul nazwa'].apply(add_bryla)
     df['bryla_zmodyfikowana'] = df['bryla'].apply(modify_bryla)
     df.loc[df['bryla_zmodyfikowana'] == 'poduszka', 'model'] = 'poduszka'
-    st.write("powinny sie zmienic modele")
-    st.write(df)
+    df.loc[df['bryla_zmodyfikowana'].str.contains('SOFA NIETYPOWA', case=False, na=False), 'model'] = 'sofa nietypowa'
+    df.loc[df['bryla_zmodyfikowana'].str.contains('FOTEL NIETYPOWY', case=False, na=False), 'model'] = 'fotel nietypowy'
     return df
 
 def add_when_finished(df):
@@ -171,13 +173,13 @@ def add_when_finished(df):
     rozkład_when_finished = rozkład_when_finished.sort_values(by='Ilość', ascending=False)
     suma = rozkład_when_finished['Ilość'].sum()
     rozkład_when_finished['Udział (%)'] = ((rozkład_when_finished['Ilość'] / suma) * 100).round(0).astype(int)
-    st.write("Rozkład ilościowy kiedy_ukonczono:")
-    st.dataframe(rozkład_when_finished)
+    # st.write("Rozkład ilościowy kiedy_ukonczono:")
+    # st.dataframe(rozkład_when_finished)
 
-    st.write(f"Liczba wierszy przed usunięciem modeli to {len(df)}")
-    df = df[df['kiedy_ukonczono'].isin(['mniej niż 3 minuty', 'tego samego dnia', 'po weekendzie', 'nastepnego dnia'])]
+    # st.write(f"Liczba wierszy przed usunięciem modeli to {len(df)}")
+    # df = df[df['kiedy_ukonczono'].isin(['mniej niż 3 minuty', 'tego samego dnia', 'po weekendzie', 'nastepnego dnia'])]
 
-    st.write(f"Liczba wierszy po usunięciem modeli to {len(df)}")
+    # st.write(f"Liczba wierszy po usunięciem modeli to {len(df)}")
     return df
 
 def add_pricelist(df):
@@ -219,8 +221,8 @@ def add_breaks(df):
     df['rozpoczeto_przed_7:15'] = (df['Start'].dt.time < datetime_time(7, 15, 0)).astype(int).map({1: 'tak', 0: 'nie'})
     df['zakonczono_po_15:30'] = (df['Stop'].dt.time > datetime_time(15, 30, 0)).astype(int).map({1: 'tak', 0: 'nie'})
 
-    st.write(f"{round((df['rozpoczeto_przed_7:15'] == 'tak').sum()/len(df)*100, 2)}% zostało rozpoczetych przed 7:15")
-    st.write(f"{round((df['zakonczono_po_15:30'] == 'tak').sum()/len(df)*100,2)}% zostało zakończonych po 15:30")
+    # st.write(f"{round((df['rozpoczeto_przed_7:15'] == 'tak').sum()/len(df)*100, 2)}% zostało rozpoczetych przed 7:15")
+    # st.write(f"{round((df['zakonczono_po_15:30'] == 'tak').sum()/len(df)*100,2)}% zostało zakończonych po 15:30")
 
     return df
 
@@ -232,7 +234,7 @@ def modify_time(df):
         end_date = row['data_stopu']
     
         if (start_date, end_date) in przerwy_dict:
-            dni_przerwy = przerwy_dict[(start_date, end_date)]
+            dni_przerwy = przerwy_dict[(start_date, end_date)][1]
             return row['Czas'] - (czas_bez_pracy_minuty + dni_przerwy * 24 * 60) - czasy_przerw
 
         if row['kiedy_ukonczono'] == 'nastepnego dnia':
@@ -320,6 +322,16 @@ def load_grouped_data(df):
     sum_poduszek.columns = ['id_komisji', 'suma_poduszek']
     df_final = pd.merge(df_final, sum_poduszek, on='id_komisji')
 
+    ### ILOŚĆ SOF NIETYPOWYCH W KOMISJI
+    sum_sofy_nietypowe = grouped['model_bryla_zmodyfikowane'].apply(lambda x: sum(1 for elem in x if 'SOFA NIETYPOWA' in elem)).reset_index()
+    sum_sofy_nietypowe.columns = ['id_komisji', 'suma_sofy_nietypowe']
+    df_final = pd.merge(df_final, sum_sofy_nietypowe, on='id_komisji')
+
+    ### ILOŚĆ SOF NIETYPOWYCH W KOMISJI
+    sum_fotele_nietypowe = grouped['model_bryla_zmodyfikowane'].apply(lambda x: sum(1 for elem in x if 'FOTEL NIETYPOWY' in elem)).reset_index()
+    sum_fotele_nietypowe.columns = ['id_komisji', 'suma_fotele_nietypowe']
+    df_final = pd.merge(df_final, sum_fotele_nietypowe, on='id_komisji')
+
     ### NAZWA WSZYSTKICH TAPICEROWANYCH MODELI
     unique_model = grouped['model'].unique().reset_index()
     unique_model.columns = ['id_komisji', 'model']
@@ -340,6 +352,54 @@ def load_grouped_data(df):
     max_stop.columns = ['id_komisji', 'maximum_stop']
     df_final = pd.merge(df_final, max_stop, on='id_komisji')
 
+    #st.write('bede przypisywać komisje')
+    ### CZY TAPICEROWANE INNE KOMISJE
+    """
+    def has_close_overlap(row, df):
+        nazwisko = row['nazwisko']
+        max_stop = row['maximum_stop']
+        akt_min_start = row['minimum_start']
+        if isinstance(nazwisko, np.ndarray):
+            if nazwisko.shape[0] != 1:  # Jeśli jest więcej niż jedna wartość w ndarray
+                return []  # Jeśli jest więcej niż jedna wartość, nie porównuj i zwróć pustą listę
+        nazwisko = nazwisko[0]
+        df_same = df[(df['nazwisko'] == nazwisko) & (df.index != row.name)]
+        matching_rows = df_same[(df_same['minimum_start'] + timedelta(minutes=2) < max_stop) & (akt_min_start < df_same['minimum_start'])]
+        return matching_rows['id_komisji'].tolist() if not matching_rows.empty else 0
+    
+    #df_final['inne_komisje_tapicerowane_jednoczesnie'] = df_final.apply(lambda row: has_close_overlap(row, df_final), axis=1)
+    def same_time_check(df):
+        df['inne_komisje_tapicerowane_jednoczesnie'] = 0
+        for index, row in df.iterrows():
+            nazwisko = row['nazwisko']
+            max_stop = row['maximum_stop']
+            for next_index, next_row in df.iloc[index+1:].iterrows():
+                next_nazwisko = next_row['nazwisko']
+                next_min_start = next_row['minimum_start']
+                if nazwisko == next_nazwisko and next_min_start + timedelta(minutes=2) < max_stop:
+                    df.at[index, 'inne_komisje_tapicerowane_jednoczesnie'] = next_index+1
+                    df.at[next_index, 'inne_komisje_tapicerowane_jednoczesnie'] = index+1
+                else:
+                    break
+    """
+    def same_time_check(df):
+        df['inne_komisje_tapicerowane_jednoczesnie'] = [[] for _ in range(len(df))]
+
+        for i in range(len(df)):
+            nazwisko = df.at[i, 'nazwisko']
+            max_stop = df.at[i, 'maximum_stop']
+
+            for j in range(i + 1, len(df)):
+                if df.at[j, 'nazwisko'] != nazwisko:
+                    break  # inna osoba
+
+                if df.at[j, 'minimum_start'] + timedelta(minutes=2) < max_stop:
+                    df.at[i, 'inne_komisje_tapicerowane_jednoczesnie'].append(j + 1)
+                    df.at[j, 'inne_komisje_tapicerowane_jednoczesnie'].append(i + 1)
+                else:
+                    break
+    same_time_check(df_final)
+    
     ### ROZPOCZĘCIE PRZED 7:15
     przed_startem = grouped['rozpoczeto_przed_7:15'].first().reset_index()
     przed_startem.columns = ['id_komisji', 'Rozpoczeto_przed_7:15']
@@ -365,47 +425,139 @@ def load_grouped_data(df):
     df_final = pd.merge(df_final, ilosc_przerw, on='id_komisji')
     return df_final
 
+def filter_grouped_data_description(df):
+    st.write(f"Ilość komisji przed zastosowaniem filtrów {len(df)}")
+    df_filtered = df[df['kiedy_ukonczono'].apply(
+        lambda x: len(x) == 1 and x[0] == 'tego samego dnia' if isinstance(x, (list, np.ndarray)) else x == 'nastepnego dnia'
+    )]
+    st.write(f"Ilość komisji po zastosowaniu filtrów na kiedy_ukonczono {len(df_filtered)}")
+    df_filtered = df_filtered[df_filtered['suma_sofy_nietypowe']==0]
+    st.write(f"Ilość komisji po zastosowaniu filtrów na sofy_nietypowe {len(df_filtered)}")
+    df_filtered = df_filtered[df_filtered['suma_fotele_nietypowe']==0]
+    st.write(f"Ilość komisji po zastosowaniu filtrów na fotele_nietypowe {len(df_filtered)}")
+    return df_filtered
+
+def filter_grouped_data(df):
+    df_filtered = df[df['kiedy_ukonczono'].apply(
+        lambda x: len(x) == 1 and x[0] == 'tego samego dnia' if isinstance(x, (list, np.ndarray)) else x == 'nastepnego dnia'
+    )]
+    df_filtered = df_filtered[df_filtered['suma_sofy_nietypowe']==0]
+    df_filtered = df_filtered[df_filtered['suma_fotele_nietypowe']==0]
+    df_filtered = df_filtered[df_filtered['inne_komisje_tapicerowane_jednoczesnie'].apply(lambda x: len(x) == 0)]
+    
+    analizowane_modele = ['AMALFI', 'AVANT', 'CALYPSO', 'COCO', 'CUPIDO', 'DIVA A', 'DIVA B',
+         'DUO II', 'ELIXIR', 'GOYA', 'GREY I', 'HUDSON', 'HORIZON A',
+         'KELLY', 'LENOX', 'LOBBY', 'MAXWELL', 'MISTRAL', 'ONYX', 'OVAL', 'OXYGEN',
+         'RAY', 'REVERSO', 'RITZ', 'SAMOA', 'SPECTRA', 'STONE', 'TOBAGO', 'TOPAZ', 'UNO',
+         'WILLOW']
+    modele_wylaczone_z_analizy = ['EXTREME I', 'EXTREME II', 'MYSTIC', 'RONDO']
+
+    df_filtered['model'].apply(lambda modele: all(m not in modele_wylaczone_z_analizy for m in modele))
+
+    return df_filtered
+
 def analiza_tapicerzy(df):
-    rozklad_tapicerzy = df.groupby('Nazwisko').size().reset_index(name='Ilość')
-    st.write("Rozkład ilościowy tapicerów:")
+    def highlight_zeros(val):
+        if val == 0:
+            return 'background-color: lightgray'  
+        return ''
+    def highlight_cells(val):
+        if pd.isna(val):
+            return 'background-color: lightgray'
+        elif val >= 90:
+            return 'background-color: lightgreen'
+        return 'background-color: lightcoral'  
+    ### POCZATKOWA ILOSC WIERSZY   
+    st.write(f"Początkowa liczba analizowanych wierszy to: {len(df)}")
+
+    ### ANALIZA ILOSCIOWA  - TAPICERZY
+    rozklad_tapicerzy = (
+        df.groupby('Nazwisko')
+        .size()
+        .reset_index(name='Ilość')
+        .sort_values(by='Ilość', ascending=False)
+        .reset_index(drop=True)
+    )
+    st.markdown("""<div style='font-size:18px; font-weight:bold;'>
+                Ilość zleceń w podziale na tapicerów:
+                </div>""", unsafe_allow_html=True)
     st.dataframe(rozklad_tapicerzy)
 
+    pivot_tapicerzy = df.pivot_table(index=['rok', 'miesiąc'], columns='Nazwisko', aggfunc='size', fill_value=0)
+    pivot_tapicerzy_styled = pivot_tapicerzy.style.applymap(highlight_zeros)
+    st.markdown("""<div style='font-size:18px; font-weight:bold;'>
+                Ilość zleceń wykonanych przez tapicerów z podziałem na miesiące:
+                </div>""", unsafe_allow_html=True)
+    st.markdown(pivot_tapicerzy_styled.to_html(), unsafe_allow_html=True)
 
-    pivot_df = df.pivot_table(index=['rok', 'miesiąc'], columns='Nazwisko', aggfunc='size', fill_value=0)
-
-    st.write("Tabela z rokiem, miesiącem i nazwiskami:")
-    st.dataframe(pivot_df)
-
-    df['kiedy_ukonczono'] = df['Czas'].apply(lambda x: 'mniej niż 3 minuty' if x < 3 else '')
-
-    grouped = df.groupby(['rok', 'miesiąc', 'Nazwisko']).agg(
+    ### ANALIZA ILOSCIOWA - POPRAWNIE ZAREJESTROWANO TAPICEROWANIE
+    grouped_kiedy_ukonczono = df.groupby(['rok', 'miesiąc', 'Nazwisko']).agg(
         liczba_wierszy=('Czas', 'size'),
         liczba_mniej_niz_3minut=('kiedy_ukonczono', lambda x: (x == 'mniej niż 3 minuty').sum())
         ).reset_index()
-    
-    grouped['procent'] = grouped.apply(
+    grouped_kiedy_ukonczono['procent'] = grouped_kiedy_ukonczono.apply(
         lambda row: round(100 - (row['liczba_mniej_niz_3minut'] / row['liczba_wierszy'] * 100))
-        if row['liczba_wierszy'] > 20 else np.nan, axis=1
-    )  
-
-    pivot_df_2 = grouped.pivot_table(
+        if row['liczba_wierszy'] > 20 else np.nan, axis=1)  
+    pivot_poprawnie_zarejestrowano = grouped_kiedy_ukonczono.pivot_table(
         index=['rok', 'miesiąc'], columns='Nazwisko', values='procent', aggfunc='first'
-    ).fillna(np.nan)
+        ).fillna(np.nan)
+    pivot_poprawnie_zarejestrowano = pivot_poprawnie_zarejestrowano.round().astype('Int64')
 
-    pivot_df_2 = pivot_df_2.round().astype('Int64')
+    styled_pivot_poprawnie_zarejestrowano = pivot_poprawnie_zarejestrowano.style.applymap(highlight_cells)
+    styled_pivot_poprawnie_zarejestrowano = styled_pivot_poprawnie_zarejestrowano.set_properties(**{'text-align': 'center'})
 
-    def highlight_cells(val):
-        if pd.isna(val):
-            return 'background-color: lightgray'  # Szary kolor dla pustych komórek
-        elif val >= 90:
-            return 'background-color: lightgreen'  # Zielony kolor dla wartości > 90
-        return 'background-color: lightcoral'  # Brak zmiany tła dla pozostałych komórek
-    styled_pivot_df_2 = pivot_df_2.style.applymap(highlight_cells)
+    st.markdown("""<div style='font-size:18px; font-weight:bold;'>
+                Udział (%) poprawnie zarejestrowanych czasów tapicerowania:
+                </div>""", unsafe_allow_html=True)
+    st.markdown(styled_pivot_poprawnie_zarejestrowano.to_html(), unsafe_allow_html=True)
+    st.markdown("""Przyjęto:  
+        <3 minuty jako błędnie zarejestrowany czas  
+        >90% poprawnie zarejestrowanych czasów – zielony kolor""")
 
-    st.write("Tabela z procentem ukończenia w czasie dłuższym niż 3 minuty:", styled_pivot_df_2)
+    ### ANALIZA ILOSCIOWA - MODELE
+    rozklad_modele = (
+        df.groupby('model')
+        .size()
+        .reset_index(name='Ilość')
+        .sort_values(by='Ilość', ascending=False)
+        .reset_index(drop=True))
+    tabela_html_modele = rozklad_modele.to_html(index=False, classes='centered-table')       
+    st.markdown("""
+        <style>
+        .centered-values th, .centered-values td {
+        text-align: center;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    st.markdown("""<div style='font-size:18px; font-weight:bold;'>
+                Ilość zleceń w podziale na modele:
+                </div>""", unsafe_allow_html=True)
+    st.markdown(tabela_html_modele, unsafe_allow_html=True)
+
+    ### ANALIZA ILOSCIOWA - KIEDY UKOŃCZONO
+    rozklad_modele = (
+        df.groupby('kiedy_ukonczono')
+        .size()
+        .reset_index(name='Ilość')
+        .sort_values(by='Ilość', ascending=False)
+        .reset_index(drop=True))
+    tabela_html_kiedy_ukonczono = rozklad_modele.to_html(index=False, classes='centered-table')       
+    st.markdown("""
+        <style>
+        .centered-values th, .centered-values td {
+        text-align: center;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    st.markdown("""<div style='font-size:18px; font-weight:bold;'>
+                Ilość zleceń w podziale na to kiedy ukończono tapicerowanie:
+                </div>""", unsafe_allow_html=True)
+    st.markdown(tabela_html_kiedy_ukonczono, unsafe_allow_html=True)
+    st.markdown("""NA - oznacza tapicerowanie którego nie mogłem przypisać do zadnej z grup, np. bardzo długi czas trwania przez zwolnienie chorobowe pracownika itd. <br>
+        mniej niz 3 minuty - jezeli tapicerowanie trwalo mniej niz 3 minuty""", unsafe_allow_html=True)
 
 def analiza_komisji(df):
-    st.write(f"Ilość wszystkich komisji to: {len(df)}")
+    st.write(f"Ilość wszystkich komisji po przefiltrowaniu to: {len(df)}")
     rozklad_efektywnosc_przedzialy = df.groupby('efektywnosc_przedzialy').size().reset_index(name='Ilość')
     rozklad_efektywnosc_przedzialy = rozklad_efektywnosc_przedzialy.sort_values(by='Ilość', ascending=False)
     suma = rozklad_efektywnosc_przedzialy['Ilość'].sum()
