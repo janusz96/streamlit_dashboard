@@ -346,10 +346,10 @@ if df_mnk.empty:
 
 # Macierz brył (0/1)
 bryly_unikalne = sorted(set(";".join(df_mnk["komisja_srednik"]).split(";")))
-st.write("bryly unikalne", bryly_unikalne)
+# st.write("bryly unikalne", bryly_unikalne)
 bryly_unikalne = [b.strip() for b in bryly_unikalne]
 bryly_unikalne = list(set([b.strip() for b in bryly_unikalne]))
-st.write("bryly unikalne po strip", bryly_unikalne)
+# st.write("bryly unikalne po strip", bryly_unikalne)
 for b in bryly_unikalne:
     df_mnk[b] = df_mnk["komisja"].apply(lambda x: x.count(b) if isinstance(x, list) else 0)
 
@@ -375,7 +375,7 @@ y = df_mnk["czas_poprawiony"]
 # Regresja MNK
 model_ols = sm.OLS(y, X).fit()
 
-st.write(model_ols)
+# st.write(model_ols)
 
 def ols_table_to_df(model_ols):
     html = model_ols.summary().tables[1].as_html()
