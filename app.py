@@ -68,7 +68,7 @@ if st.button("Pokaz szczegółowo proces oczyszczania danych"):
     st.write(df_bazowe)
     analiza_tapicerzy(df_tapicernia_czasy)
 
-    st.write("Tabela z **danymi po obróbce** - między innymi dodałem nowe kolumny")
+    st.write("Tabela z **danymi po obróbce**.")
     st.write(df_tapicernia_czasy)
     
 ### ETAP II - GRUPOWANIE DANYCH
