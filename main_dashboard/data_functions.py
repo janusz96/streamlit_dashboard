@@ -5,7 +5,7 @@ import numpy as np
 import re
 from datetime import date, timedelta
 from datetime import time as datetime_time
-from paths import *
+from main_dashboard.paths import *
 
 
 czas_bez_pracy_minuty = 945

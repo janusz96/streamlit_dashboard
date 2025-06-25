@@ -1,6 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,8 +9,8 @@ import datetime as dt
 import time
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
-from data_functions import *
-from paths import *
+from main_dashboard.data_functions import *
+from main_dashboard.paths import *
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 from bs4 import BeautifulSoup
