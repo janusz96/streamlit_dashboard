@@ -562,7 +562,6 @@ def analiza_tapicerzy(df):
     st.write ("Modele poduszek:")
     st.write(sorted(df[df['czas_cennikowy'] == 1]['Artykul nazwa'].unique()))
 
-
 def analiza_komisji(df):
     st.write(f"Ilość wszystkich komisji po przefiltrowaniu to: {len(df)}")
     rozklad_efektywnosc_przedzialy = df.groupby('efektywnosc_przedzialy').size().reset_index(name='Ilość')
@@ -658,8 +657,6 @@ def analiza_komisji(df):
     pivot_filtered = pivot_filtered.dropna(how='all')
     pivot_filtered = pivot_filtered.applymap(lambda x: round(x * 100) if pd.notna(x) else x)
     st.write(pivot_filtered)
-
-
 
 def clean_data(df):
 
