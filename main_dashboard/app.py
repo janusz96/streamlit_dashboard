@@ -1,8 +1,6 @@
 import sys
 import os
 import streamlit as st
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 st.write("Current working directory:", os.getcwd())
 st.write("Python sys.path:", sys.path)
 
