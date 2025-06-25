@@ -190,12 +190,6 @@ def add_pricelist(df):
     cennik_dict = df_cennik.set_index('model_material_bryla')['cennik'].to_dict()    
     df['czas_cennikowy'] = df['model_bryla_zmodyfikowane'].map(cennik_dict).fillna(0)
     df.loc[df['bryla_zmodyfikowana'] == 'poduszka', 'czas_cennikowy'] = 1
-
-    st.write ("Wartości do których brak ceny w cenniku:")
-    st.write(sorted(df[df['czas_cennikowy'] == 0]['Artykul nazwa'].unique()))
-
-    st.write ("Modele poduszek:")
-    st.write(sorted(df[df['czas_cennikowy'] == 1]['Artykul nazwa'].unique()))
     return df
 
 def add_breaks(df):
@@ -561,6 +555,13 @@ def analiza_tapicerzy(df):
     st.markdown(tabela_html_kiedy_ukonczono, unsafe_allow_html=True)
     st.markdown("""NA - oznacza tapicerowanie którego nie mogłem przypisać do zadnej z grup, np. bardzo długi czas trwania przez zwolnienie chorobowe pracownika itd. <br>
         mniej niz 3 minuty - jezeli tapicerowanie trwalo mniej niz 3 minuty""", unsafe_allow_html=True)
+
+    st.write ("Wartości do których brak ceny w cenniku:")
+    st.write(sorted(df[df['czas_cennikowy'] == 0]['Artykul nazwa'].unique()))
+
+    st.write ("Modele poduszek:")
+    st.write(sorted(df[df['czas_cennikowy'] == 1]['Artykul nazwa'].unique()))
+
 
 def analiza_komisji(df):
     st.write(f"Ilość wszystkich komisji po przefiltrowaniu to: {len(df)}")
