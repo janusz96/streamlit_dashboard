@@ -121,9 +121,10 @@ selected_efektywnosc = st.sidebar.slider(
 
 
 ### ZASTOSTOWANIE FILTRÓW
-st.subheader("ŚREDNIA EFEKTYWNOŚĆ")
+st.subheader("ŚREDNIA EFEKTYWNOŚĆ (%)")
 st.markdown("""
-Z lewej strony dostępne są filtry do zastosowania, po ich zmianie dane w tabelach ponizej zostaną przeliczone automatycznie.
+Po lewej stronie możesz skorzystać z dostępnych filtrów.
+Po ich zmianie dane w tabeli poniżej zostaną automatycznie odświeżone
 """)
 mask_tapicerzy = df_final['nazwisko'].isin(tapicer_filtr)
 total = df_final[mask_tapicerzy].shape[0]
