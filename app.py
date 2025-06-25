@@ -1,7 +1,8 @@
 import sys
 import os
-print(sys.path)
 import streamlit as st
+st.write(sys.path)
+
 import pandas as pd
 import numpy as np
 import datetime as dt
