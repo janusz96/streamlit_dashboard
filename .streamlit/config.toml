@@ -1,2 +1,7 @@
 [server]
 runOnSave = true
+headless = true
+enableCORS = false
+
+[python]
+importPaths = ["main_dashboard"]
