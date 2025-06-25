@@ -49,9 +49,9 @@ def update_data(df):
     df = add_id_komisji(df)
     return df
 
-def create_grouped_df(df):
+def create_grouped_df(df, czy_komentarz = "nie"):
     df = load_grouped_data(df)
-    df = filter_grouped_data(df)
+    df = filter_grouped_data(df, czy_komentarz)
     # df = filter_grouped_data_description(df)
     # analiza_komisji(df)
     return df
@@ -191,10 +191,10 @@ def add_pricelist(df):
     df.loc[df['bryla_zmodyfikowana'] == 'poduszka', 'czas_cennikowy'] = 1
 
     st.write ("Wartości do których brak ceny w cenniku:")
-    st.write(df[df['czas_cennikowy'] == 0]['Artykul nazwa'].unique())
+    st.write(sorted(df[df['czas_cennikowy'] == 0]['Artykul nazwa'].unique()))
 
     st.write ("Modele poduszek:")
-    st.write(df[df['czas_cennikowy'] == 1]['Artykul nazwa'].unique())
+    st.write(sorted(df[df['czas_cennikowy'] == 1]['Artykul nazwa'].unique()))
     return df
 
 def add_breaks(df):
@@ -425,35 +425,40 @@ def load_grouped_data(df):
     df_final = pd.merge(df_final, ilosc_przerw, on='id_komisji')
     return df_final
 
-def filter_grouped_data_description(df):
-    st.write(f"Ilość komisji przed zastosowaniem filtrów {len(df)}")
-    df_filtered = df[df['kiedy_ukonczono'].apply(
-        lambda x: len(x) == 1 and x[0] == 'tego samego dnia' if isinstance(x, (list, np.ndarray)) else x == 'nastepnego dnia'
-    )]
-    st.write(f"Ilość komisji po zastosowaniu filtrów na kiedy_ukonczono {len(df_filtered)}")
-    df_filtered = df_filtered[df_filtered['suma_sofy_nietypowe']==0]
-    st.write(f"Ilość komisji po zastosowaniu filtrów na sofy_nietypowe {len(df_filtered)}")
-    df_filtered = df_filtered[df_filtered['suma_fotele_nietypowe']==0]
-    st.write(f"Ilość komisji po zastosowaniu filtrów na fotele_nietypowe {len(df_filtered)}")
-    return df_filtered
+def filter_grouped_data(df, czy_komentarz):
+    if czy_komentarz == "tak":
+        st.write("Liczba komisja przed zastosowaniem filtrów: ", df.shape[0])
 
-def filter_grouped_data(df):
+    # Filtr nr 1: tylko komisje zakończone tego samego dnia
     df_filtered = df[df['kiedy_ukonczono'].apply(
         lambda x: len(x) == 1 and x[0] == 'tego samego dnia' if isinstance(x, (list, np.ndarray)) else x == 'nastepnego dnia'
     )]
+    
+    # Filtr nr 2: brak nietypowych brył
     df_filtered = df_filtered[df_filtered['suma_sofy_nietypowe']==0]
     df_filtered = df_filtered[df_filtered['suma_fotele_nietypowe']==0]
-    df_filtered = df_filtered[df_filtered['inne_komisje_tapicerowane_jednoczesnie'].apply(lambda x: len(x) == 0)]
+    if czy_komentarz == "tak":
+        st.write("Filtr nr2: komisja nie zawiera nietypowych brył (SOFA NIETYPOWA, FOTEL NIETYPOWY)")
+        st.write("Liczba komisji po zastosowaniu filtru nr2: ", df_filtered.shape[0])
     
+    # Filtr nr 3: tylko jedna komisja w tym samym czasie
+    df_filtered = df_filtered[df_filtered['inne_komisje_tapicerowane_jednoczesnie'].apply(lambda x: len(x) == 0)]
+    if czy_komentarz == "tak":
+        st.write("Filtr nr3: tylko jedna komisja tapicerowana w tym samym czasie (tolerancja do 2 minut nakładania się czasów)")
+        st.write("Liczba komisji po zastosowaniu filtru nr3: ", df_filtered.shape[0])
+    
+    # Filtr nr 4: brak wyłączonych modeli
     analizowane_modele = ['AMALFI', 'AVANT', 'CALYPSO', 'COCO', 'CUPIDO', 'DIVA A', 'DIVA B',
          'DUO II', 'ELIXIR', 'GOYA', 'GREY I', 'HUDSON', 'HORIZON A',
          'KELLY', 'LENOX', 'LOBBY', 'MAXWELL', 'MISTRAL', 'ONYX', 'OVAL', 'OXYGEN',
          'RAY', 'REVERSO', 'RITZ', 'SAMOA', 'SPECTRA', 'STONE', 'TOBAGO', 'TOPAZ', 'UNO',
          'WILLOW']
     modele_wylaczone_z_analizy = ['EXTREME I', 'EXTREME II', 'MYSTIC', 'RONDO']
-
-    df_filtered['model'].apply(lambda modele: all(m not in modele_wylaczone_z_analizy for m in modele))
-
+    df_filtered = df_filtered[df_filtered['model'].apply(lambda modele: all(m not in modele_wylaczone_z_analizy for m in modele))]
+    if czy_komentarz == "tak":
+        st.write("Filtr nr4: komisja nie zawiera zadnego z wyłączonych modeli. Lista modeli wyłączonych z analizy:", modele_wylaczone_z_analizy)
+        st.write("Liczba komisji po zastosowaniu filtru nr4: ", df_filtered.shape[0])
+    
     return df_filtered
 
 def analiza_tapicerzy(df):

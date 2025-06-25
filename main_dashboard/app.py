@@ -36,7 +36,9 @@ if 'obrobione_dane' not in st.session_state:
 # st.write("Dane w session_state.bazowe_dane:", st.session_state.bazowe_dane)
 # st.write("Dane w session_state.obrobione_dane:", st.session_state.obrobione_dane)
 df_tapicernia_czasy = st.session_state.obrobione_dane
+df_bazowe = st.session_state.bazowe_dane
 
+### OPIS ANALIZY
 st.markdown("""
 ### Opis analizy
 
@@ -56,19 +58,35 @@ Do analizy zostały wzięte tylko te komisje, które spełniały wszystkie z pon
 """)
 
 
-if st.button("Pokaz szczegołówą analizę:"):
+
+### ETAP I - OCZYSZCZENIE DANYCH
+st.subheader("ETAP 1 - OCZYSZCZENIE DANYCH")
+if st.button("Pokaz szczegółowo proces oczyszczania danych"):
+    st.markdown("Tabela z **surowymi danymi** z systemu **Saturn**, które otrzymałem od **Damiana**.:")
+    st.write(df_bazowe)
     analiza_tapicerzy(df_tapicernia_czasy)
 
-### WCZYTANIE ZGRUPOWANYCH DANYCH
+    st.write("Tabela z **danymi po obróbce** - między innymi dodałem nowe kolumny")
+    st.write(df_tapicernia_czasy)
+    
+### ETAP II - GRUPOWANIE DANYCH
+st.subheader("ETAP 2 - GRUPOWANIE DANYCH")
+
+# WCZYTANIE ZGRUPOWANYCH DANYCH
 df_final = create_grouped_df(df_tapicernia_czasy)
 loading_placeholder.text("Sukces! Udało się pomyślnie załadować dane.")
-
-### OKREŚLENIE Z KIEDY JEST ANALIZA
+# OKREŚLENIE Z KIEDY JEST ANALIZA
 first_date = df_tapicernia_czasy['Start'].min()
 last_date  = df_tapicernia_czasy['Stop'].max()
-st.write(f"Analizowane dane są z okresu: {first_date.date()} do {last_date.date()}")
+st.write(f"Zakres danych: {first_date.date()} do {last_date.date()}")
+if st.button("Pokaz szczegółowo proces filtrowania danych"):
+    df_final = create_grouped_df(df_tapicernia_czasy, czy_komentarz="tak")
+    st.markdown("Tabela ze **zgrupowanymi i przefiltrowanymi** danymi:")
+    st.write(df_final)
 
-### OKREŚLENIE FILTRÓW
+
+
+### USTAWIENIE FILTRÓW
 # TAPICEROWIE
 tapicer_filtr = st.sidebar.multiselect(
     'Tapicerzy:',
@@ -99,12 +117,15 @@ selected_efektywnosc = st.sidebar.slider(
 
 
 
-st.write(df_final)
 
-### OBROBKA WYSWIETLANYCH DANYCH
+### ZASTOSTOWANIE FILTRÓW
+st.subheader("ŚREDNIA EFEKTYWNOŚĆ")
+st.markdown("""
+Z lewej strony dostępne są filtry do zastosowania, po ich zmianie dane w tabelach ponizej zostaną przeliczone automatycznie.
+""")
 mask_tapicerzy = df_final['nazwisko'].isin(tapicer_filtr)
 total = df_final[mask_tapicerzy].shape[0]
-st.write("total ", total)
+#st.write("total ", total)
 if total == 0:
     below_range = 0
     above_range = 0
@@ -112,8 +133,8 @@ else:
     below_range = df_final[(df_final["efektywnosc"]*100 < selected_efektywnosc[0]) & mask_tapicerzy].shape[0] / total
     above_range = df_final[(df_final["efektywnosc"]*100 > selected_efektywnosc[1]) & mask_tapicerzy].shape[0] / total
 
-st.write(f"Ponizej wybranej efektywnosci jest {round(below_range * 100, 1)}% wartosci.")
-st.write(f"Powyzej wybranej efektywnosci jest {round(above_range * 100, 1)}% wartosci.")
+#st.write(f"Ponizej wybranej efektywnosci jest {round(below_range * 100, 1)}% komisji.")
+#st.write(f"Powyzej wybranej efektywnosci jest {round(above_range * 100, 1)}% komisji.")
 
 
 # ZASTOSOWANIE FILTRÓW
@@ -289,9 +310,9 @@ styled_pivot_median = pivot_df_valid_all_median.style \
         {'selector': 'th', 'props': [('white-space', 'normal'), ('word-wrap', 'break-word'), ('text-align', 'center'), ('width', '180px')]},
         {'selector': 'td', 'props': [('text-align', 'center'), ('width', '180px')]}
     ])
-st.markdown(styled_pivot_median.to_html(), unsafe_allow_html=True)
+#st.markdown(styled_pivot_median.to_html(), unsafe_allow_html=True)
 
-st.write("ponizej analiza mnk")
+st.subheader("Analiza metodą najmniejszych kwadratów")
 df_mnk = df_final
 
 df_mnk["nazwisko"] = df_final["nazwisko"].apply(
@@ -302,7 +323,7 @@ df_mnk["model"] = df_final["model"].apply(
     lambda x: ' '.join(sorted(x)) if isinstance(x, (list, np.ndarray)) else str(x)
 )
 
-df_mnk["komisja_srednik"] = df_final["komisja"].apply(
+df_mnk["komisja_srednik"] = df_mnk["komisja"].apply(
     lambda x: '; '.join(sorted(x)) if isinstance(x, (list, np.ndarray)) else str(x)
 )
 
@@ -314,6 +335,8 @@ model = st.selectbox("Wybierz model mebla", sorted(modele))
 
 # Filtrowanie
 df_mnk = df_final[(df_final["nazwisko"] == tapicer) & (df_final["model"] == model)].copy()
+df_mnk = df_mnk[(df_mnk["efektywnosc"]*100>=selected_efektywnosc[0]) & (df_mnk["efektywnosc"]*100<= 
+selected_efektywnosc[1])]
 
 if df_mnk.empty:
     st.warning("Brak danych dla wybranego tapicera i modelu.")
@@ -323,9 +346,27 @@ if df_mnk.empty:
 
 # Macierz brył (0/1)
 bryly_unikalne = sorted(set(";".join(df_mnk["komisja_srednik"]).split(";")))
+st.write("bryly unikalne", bryly_unikalne)
 bryly_unikalne = [b.strip() for b in bryly_unikalne]
+bryly_unikalne = list(set([b.strip() for b in bryly_unikalne]))
+st.write("bryly unikalne po strip", bryly_unikalne)
 for b in bryly_unikalne:
-    df_mnk[b] = df_mnk["komisja"].apply(lambda x: int(b in x))
+    df_mnk[b] = df_mnk["komisja"].apply(lambda x: x.count(b) if isinstance(x, list) else 0)
+
+df_mnk_cleaned = df_mnk.copy()
+
+def make_hashable(x):
+    if isinstance(x, (list, np.ndarray)):
+        return tuple(x)
+    return x
+
+for col in df_mnk_cleaned.columns:
+    df_mnk_cleaned[col] = df_mnk_cleaned[col].apply(make_hashable)
+
+# lista duplikatów
+duplicates = [x for x in bryly_unikalne if bryly_unikalne.count(x) > 1]
+duplicates = list(set(duplicates))
+
 
 # Dane do regresji
 X = df_mnk[bryly_unikalne]
@@ -333,6 +374,8 @@ y = df_mnk["czas_poprawiony"]
 
 # Regresja MNK
 model_ols = sm.OLS(y, X).fit()
+
+st.write(model_ols)
 
 def ols_table_to_df(model_ols):
     html = model_ols.summary().tables[1].as_html()
@@ -344,7 +387,20 @@ def ols_table_to_df(model_ols):
         cols = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
         rows.append(cols)
 
-    return pd.DataFrame(rows[1:], columns=rows[0])
+    df = pd.DataFrame(rows[1:], columns=rows[0])
+    df.rename(columns={df.columns[0]: "Zmienna"}, inplace=True)
+    df = df.sort_values(by="Zmienna")
+    return df
+
+y_pred = model_ols.predict(X)
+
+# Połącz wszystko w jeden DataFrame do podglądu
+#df_check = X.copy()
+#df_check['y_actual'] = y
+#df_check['y_predicted'] = y_pred
+
+# Wyświetl kilka pierwszych wierszy
+#st.write(df_check.head(10))
 
 # Wyniki
 st.subheader("Wyniki regresji MNK")
@@ -365,4 +421,3 @@ ax.set_xlabel("Rzeczywisty czas komisji")
 ax.set_ylabel("Przewidziany czas komisji")
 ax.set_title("Dopasowanie modelu")
 st.pyplot(fig)
-
