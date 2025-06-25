@@ -1,5 +1,4 @@
 [server]
 runOnSave = true
 headless = true
-enableCORS = false
 

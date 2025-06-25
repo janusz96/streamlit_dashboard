@@ -41,7 +41,7 @@ def update_data(df):
     df = remove_useless_columns(df)
     df = sort_data_by_name(df)
     df = add_model_bryla_column(df)
-    df = add_material_info(df, path_komisja_skory)
+    df = add_material_info(df, st.secrets["paths"]["path_komisja_skory"])
     df = add_data_columns(df)
     df = add_when_finished(df)
     df = add_pricelist(df)
@@ -71,8 +71,8 @@ def sort_data_by_name(df):
     return df
 
 def add_material_info(df, path):
-    df_material = load_data(path_komisja_skory, 'komisje')
-    df_poprawne_bryly = load_data(path_poprawne_bryly, 'model_bryla')
+    df_material = load_data(st.secrets["paths"]["path_komisja_skory"], 'komisje')
+    df_poprawne_bryly = load_data(st.secrets["paths"]["path_poprawne_bryly"], 'model_bryla')
 
     def add_komisja(NS):
         if NS in df_material['Nr sys.'].values:
@@ -184,7 +184,7 @@ def add_when_finished(df):
     return df
 
 def add_pricelist(df):
-    df_cennik = load_data(path_cennik, "cennik_nowy")
+    df_cennik = load_data(st.secrets["paths"]["path_cennik"], "cennik_nowy")
     df_cennik = df_cennik [["model_material_bryla", "cennik"]]
     df_cennik = df_cennik.dropna (how="all")
     cennik_dict = df_cennik.set_index('model_material_bryla')['cennik'].to_dict()    
