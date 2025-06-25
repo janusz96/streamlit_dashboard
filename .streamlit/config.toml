@@ -2,4 +2,4 @@
 runOnSave = true
 headless = true
 enableCORS = false
-workingDir = "main_dashboard"
+

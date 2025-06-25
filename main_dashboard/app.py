@@ -10,8 +10,8 @@ import datetime as dt
 import time
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
-from main_dashboard.data_functions import *
-from main_dashboard.paths import *
+from data_functions import *
+from paths import *
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 from bs4 import BeautifulSoup
