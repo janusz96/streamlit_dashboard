@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from datetime import time as datetime_time
 from paths import *
 
+
 czas_bez_pracy_minuty = 945
 przerwy_dict = {
     (date(2023, 1, 5), date(2023, 1, 9)): ('po trzech kroli 2023', 3),
