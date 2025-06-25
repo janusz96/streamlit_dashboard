@@ -1,9 +1,6 @@
 import sys
 import os
 import streamlit as st
-st.write("Current working directory:", os.getcwd())
-st.write("Python sys.path:", sys.path)
-
 import pandas as pd
 import numpy as np
 import datetime as dt
