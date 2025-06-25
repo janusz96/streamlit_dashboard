@@ -3,6 +3,8 @@ import os
 import pathlib
 sys.path.append(str(pathlib.Path(__file__).parent.resolve()))
 import streamlit as st
+st.write("sys.path", sys.path)
+st.write("Zawartość katalogu:", os.listdir(pathlib.Path(__file__).parent.resolve()))
 import pandas as pd
 import numpy as np
 import datetime as dt
