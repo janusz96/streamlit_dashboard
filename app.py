@@ -1,6 +1,3 @@
-import sys
-import os
-import pathlib
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -9,16 +6,19 @@ import time
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from data_functions import *
+from io import BytesIO
 # from paths import *
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 from bs4 import BeautifulSoup
 
 
-
-
-### OPISANIE NAZW
+### WYGLAD STRONY
 st.set_page_config(page_title="Analiza tapicerni", layout="wide")
+st.title("📊 Analiza czasu pracy tapicerów")
+st.sidebar.header("Filtry")
+
+### WPISYWANIE HASŁA
 def check_password():
     correct_password = st.secrets["access"]["password"]
 
@@ -35,12 +35,10 @@ def check_password():
         st.text_input("Wpisz hasło:", type="password", on_change=password_entered, key="password")
         st.error("Niepoprawne hasło, spróbuj ponownie.")
         st.stop()   # Zatrzymaj dalsze działanie
-
 check_password()
 
-st.title("📊 Analiza czasu pracy tapicerów")
-st.sidebar.header("Filtry")
 
+### ŁADOWANIE
 st.markdown("Proszę o chwilę cierpliwości 😊.  \n"
             "Po włączeniu strony dane mogą ładować się przez kilka minut ⏳.  \n")
 loading_placeholder = st.empty()
@@ -316,6 +314,50 @@ styled_pivot_mean = pivot_mean.style \
 st.markdown(styled_pivot_mean.to_html(), unsafe_allow_html=True)
 
 
+# EKSPORTOWANIE PLIKU DO EXCEL
+start_selected, end_selected = selected_dates
+min_selected_efektywnosc, max_selected_efektywnosc = selected_efektywnosc
+filtry = {
+    "Data od": f"{start_selected} — {end_selected}",
+    "Efektywność": f"{min_selected_efektywnosc}(%) — {max_selected_efektywnosc}(%)",
+    "Tapicerzy": ", ".join(tapicer_filtr) if tapicer_filtr else "wszyscy"
+}
+def to_excel(df, filtry: dict):
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        workbook = writer.book
+        worksheet = workbook.add_worksheet('Efektywność')
+        writer.sheets['Efektywność'] = worksheet
+
+        # Wpisz filtry na górze
+        row_offset = 0
+        for i, (key, value) in enumerate(filtry.items()):
+            worksheet.write(i, 0, f"{key}:")
+            worksheet.write(i, 1, str(value))
+        row_offset = len(filtry) + 2  # zostaw trochę odstępu
+
+        # Zapisz tabelę z przesunięciem wiersza
+        df.to_excel(writer, sheet_name='Efektywność', startrow=row_offset, index=True)
+
+        # Automatyczne ustawienie szerokości
+        for i, col in enumerate(df.columns):
+            column_width = max(df[col].astype(str).map(len).max(), len(str(col))) + 2
+            worksheet.set_column(i + 1, i + 1, column_width)
+        worksheet.set_column(0, 0, 30)
+
+    output.seek(0)
+    return output
+excel_file = to_excel(pivot_mean, filtry)
+st.download_button(
+    label="📥 Pobierz tabelę jako Excel",
+    data=excel_file,
+    file_name="efektywnosc_tapicerow.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+
+
+
 pivot_df_valid_all_median = df_valid.pivot_table(
     index='model',
     columns='nazwisko',
@@ -336,6 +378,10 @@ styled_pivot_median = pivot_df_valid_all_median.style \
     ])
 #st.markdown(styled_pivot_median.to_html(), unsafe_allow_html=True)
 
+
+
+
+### METODA NAJMNIEJSZYCH KWADRATOW
 st.subheader("Analiza metodą najmniejszych kwadratów")
 df_mnk = df_final
 
@@ -353,6 +399,18 @@ df_mnk["komisja_srednik"] = df_mnk["komisja"].apply(
 
 tapicerzy = df_final["nazwisko"].unique()
 modele = df_final["model"].unique()
+
+top_pary = (
+    df_mnk.groupby(["nazwisko", "model"])
+    .size()
+    .reset_index(name="liczba")
+    .sort_values("liczba", ascending=False)
+    .head(10)
+)
+st.markdown("### 🔝 Top 10 najczęstszych par tapicer–model")
+st.dataframe(top_pary, use_container_width=True)
+
+
 
 tapicer = st.selectbox("Wybierz tapicera", sorted(tapicerzy))
 model = st.selectbox("Wybierz model mebla", sorted(modele))
