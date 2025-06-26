@@ -19,6 +19,25 @@ from bs4 import BeautifulSoup
 
 ### OPISANIE NAZW
 st.set_page_config(page_title="Analiza tapicerni", layout="wide")
+def check_password():
+    correct_password = st.secrets["access"]["password"]
+
+    def password_entered():
+        if st.session_state["password"] == correct_password:
+            st.session_state["password_correct"] = True
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("Wpisz hasło:", type="password", on_change=password_entered, key="password")
+        st.stop()   # Zatrzymaj dalsze działanie
+    if not st.session_state.get("password_correct", False):
+        st.text_input("Wpisz hasło:", type="password", on_change=password_entered, key="password")
+        st.error("Niepoprawne hasło, spróbuj ponownie.")
+        st.stop()   # Zatrzymaj dalsze działanie
+
+check_password()
+
 st.title("📊 Analiza czasu pracy tapicerów")
 st.sidebar.header("Filtry")
 
