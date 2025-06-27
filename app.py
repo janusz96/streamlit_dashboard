@@ -51,7 +51,7 @@ for dot in dots:
 ### SPRAWDZENIE CZY DANE SA ZALADOWANE, BY PONOWNIE NIE PRZELICZAC STRONY PO UZYCIU PRZYCISKU
 if 'bazowe_dane' not in st.session_state:
     #st.session_state.bazowe_dane = load_data(path_raw_data, "czas tapicernia")
-    st.session_state.bazowe_dane = load_data(st.secrets["paths"]["path_raw_data"], "czas tapicernia")
+    st.session_state.bazowe_dane = load_data(st.secrets["paths"]["path_raw_data"], "czas tapicernia_new")
 if 'obrobione_dane' not in st.session_state:
     st.session_state.obrobione_dane = update_data(st.session_state.bazowe_dane)
 # st.write("Dane w session_state.bazowe_dane:", st.session_state.bazowe_dane)
