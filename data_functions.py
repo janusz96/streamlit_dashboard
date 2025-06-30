@@ -108,7 +108,7 @@ def add_data_columns(df):
 
 def add_model_bryla_column(df):
     analizowane_modele = ['AMALFI', 'AVANT', 'CALYPSO', 'COCO', 'CUPIDO', 'DIVA A', 'DIVA B',
-         'DUO II', 'ELIXIR', 'EXTREME I', 'EXTREME II', 'GOYA', 'GREY I', 'HUDSON', 'HORIZON A',
+         'DUO II', 'ELIXIR', 'EXTREME I', 'EXTREME II', 'GOYA', 'GREY II', 'GREY I', 'HUDSON', 'HORIZON A',
          'KELLY', 'LENOX', 'LOBBY', 'MAXWELL', 'MISTRAL', 'MYSTIC', 'ONYX', 'OVAL', 'OXYGEN',
          'RAY', 'REVERSO', 'RITZ', 'RONDO', 'SAMOA', 'SPECTRA', 'STONE', 'TOBAGO', 'TOPAZ', 'UNO',
          'WILLOW']
@@ -133,6 +133,7 @@ def add_model_bryla_column(df):
     # st.write(f"Liczba wierszy przed usunięciem modeli to {len(df)}")
 
     df['model'] = df['Artykul nazwa'].apply(extract_model)
+    df['model'] = df['model'].replace('GREY II', 'GREY I')
     # df = df[~df['model'].isin(modele_do_usuniecia)]
 
     # st.write(f"Liczba wierszy po usunięciu modeli to {len(df)}")

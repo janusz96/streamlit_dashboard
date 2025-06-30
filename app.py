@@ -357,6 +357,30 @@ st.download_button(
 
 
 
+# TABELA Z NISKA EFEKTYWNOSCIA
+def make_hashable(x):
+    if isinstance(x, (list, np.ndarray)):
+        return tuple(x)
+    return x
+df_niska_efektywnosc = df_final[df_final['efektywnosc'] * 100 < selected_efektywnosc[0]]
+df_niska_efektywnosc = df_niska_efektywnosc[df_niska_efektywnosc["nazwisko"].isin(tapicer_filtr)]
+df_niska_efektywnosc["nazwisko"] = df_niska_efektywnosc["nazwisko"].apply(make_hashable)
+df_niska_efektywnosc["komisja"] = df_niska_efektywnosc["komisja"].apply(make_hashable)
+top_pary_efektywnosc = (
+    df_niska_efektywnosc.groupby(["nazwisko", "komisja"])
+    .size()
+    .reset_index(name="liczba")
+    .sort_values("liczba", ascending=False)
+    .head(10)
+)
+st.markdown("### NISKA EFEKTYWNOŚĆ - Top 10 najczęstszych par tapicer–komisja")
+st.dataframe(top_pary_efektywnosc, use_container_width=True)
+
+
+
+
+
+
 
 pivot_df_valid_all_median = df_valid.pivot_table(
     index='model',
@@ -437,10 +461,7 @@ for b in bryly_unikalne:
 
 df_mnk_cleaned = df_mnk.copy()
 
-def make_hashable(x):
-    if isinstance(x, (list, np.ndarray)):
-        return tuple(x)
-    return x
+
 
 for col in df_mnk_cleaned.columns:
     df_mnk_cleaned[col] = df_mnk_cleaned[col].apply(make_hashable)
