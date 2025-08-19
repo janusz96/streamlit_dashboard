@@ -146,6 +146,7 @@ def add_model_bryla_column(df):
     # st.write (df[df['model'] == 'brak_modelu']['Artykul nazwa'].value_counts().head(10))
 
     df['bryla'] = df['Artykul nazwa'].apply(add_bryla)
+    df['bryla'] = df['bryla'].replace('GREY II [1]', '[1]')
     df['bryla_zmodyfikowana'] = df['bryla'].apply(modify_bryla)
     df.loc[df['bryla_zmodyfikowana'] == 'poduszka', 'model'] = 'poduszka'
     df.loc[df['bryla_zmodyfikowana'].str.contains('SOFA NIETYPOWA', case=False, na=False), 'model'] = 'sofa nietypowa'
@@ -429,6 +430,9 @@ def filter_grouped_data(df, czy_komentarz):
     df_filtered = df[df['kiedy_ukonczono'].apply(
         lambda x: len(x) == 1 and x[0] == 'tego samego dnia' if isinstance(x, (list, np.ndarray)) else x == 'nastepnego dnia'
     )]
+    if czy_komentarz == "tak":
+        st.write("Filtr nr1: tylko komisje tapicerowane w ciągu jednego dnia")
+        st.write("Liczba komisji po zastosowaniu filtru nr2: ", df_filtered.shape[0])
     
     # Filtr nr 2: brak nietypowych brył
     df_filtered = df_filtered[df_filtered['suma_sofy_nietypowe']==0]

@@ -5,8 +5,9 @@ import datetime as dt
 import time
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
+import io
+import utils
 from data_functions import *
-from io import BytesIO
 # from paths import *
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -19,24 +20,7 @@ st.title("📊 Analiza czasu pracy tapicerów")
 st.sidebar.header("Filtry")
 
 ### WPISYWANIE HASŁA
-def check_password():
-    correct_password = st.secrets["access"]["password"]
-
-    def password_entered():
-        if st.session_state["password"] == correct_password:
-            st.session_state["password_correct"] = True
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        st.text_input("Wpisz hasło:", type="password", on_change=password_entered, key="password")
-        st.stop()   # Zatrzymaj dalsze działanie
-    if not st.session_state.get("password_correct", False):
-        st.text_input("Wpisz hasło:", type="password", on_change=password_entered, key="password")
-        st.error("Niepoprawne hasło, spróbuj ponownie.")
-        st.stop()   # Zatrzymaj dalsze działanie
-check_password()
-
+utils.check_password()
 
 ### ŁADOWANIE
 st.markdown("Proszę o chwilę cierpliwości 😊.  \n"
@@ -50,7 +34,6 @@ for dot in dots:
 
 ### SPRAWDZENIE CZY DANE SA ZALADOWANE, BY PONOWNIE NIE PRZELICZAC STRONY PO UZYCIU PRZYCISKU
 if 'bazowe_dane' not in st.session_state:
-    #st.session_state.bazowe_dane = load_data(path_raw_data, "czas tapicernia")
     st.session_state.bazowe_dane = load_data(st.secrets["paths"]["path_raw_data"], "czas tapicernia_new")
 if 'obrobione_dane' not in st.session_state:
     st.session_state.obrobione_dane = update_data(st.session_state.bazowe_dane)
@@ -86,15 +69,30 @@ if st.button("Pokaz szczegółowo proces oczyszczania danych"):
     st.markdown("Tabela z **surowymi danymi** z systemu **Saturn**, które otrzymałem od **Damiana**.:")
     st.write(df_bazowe)
     analiza_tapicerzy(df_tapicernia_czasy)
-
     st.write("Tabela z **danymi po obróbce**.")
     st.write(df_tapicernia_czasy)
+excel_data_obrobione = utils.to_excel_first(df_tapicernia_czasy)
+st.download_button(
+    label="Pobierz Excel - obrobione dane",
+    data=excel_data_obrobione,
+    file_name='dane_obrobione.xlsx',
+    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+)
     
 ### ETAP II - GRUPOWANIE DANYCH
 st.subheader("ETAP 2 - GRUPOWANIE DANYCH")
 
 # WCZYTANIE ZGRUPOWANYCH DANYCH
 df_final = create_grouped_df(df_tapicernia_czasy)
+
+excel_data = utils.to_excel_first(df_final)
+st.download_button(
+    label="Pobierz Excel - zgrupowane dane",
+    data=excel_data,
+    file_name='dane.xlsx',
+    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+)
+
 loading_placeholder.text("Sukces! Udało się pomyślnie załadować dane.")
 # OKREŚLENIE Z KIEDY JEST ANALIZA
 first_date = df_tapicernia_czasy['Start'].min()
@@ -107,8 +105,8 @@ if st.button("Pokaz szczegółowo proces filtrowania danych"):
 
 
 
-### USTAWIENIE FILTRÓW
-# TAPICEROWIE
+### FILTRY
+# TAPICERZY
 tapicer_filtr = st.sidebar.multiselect(
     'Tapicerzy:',
     options=sorted(df_tapicernia_czasy['Nazwisko'].unique()),
@@ -117,7 +115,7 @@ tapicer_filtr = st.sidebar.multiselect(
 
 # DATY ANALIZY
 start_date = dt.date(2022, 12, 1)
-end_date = dt.date(2025, 12, 31)
+end_date   = dt.date(2025, 12, 31)
 selected_dates = st.sidebar.slider(
     "Zakres dat",
     min_value=start_date,
@@ -142,8 +140,8 @@ selected_efektywnosc = st.sidebar.slider(
 ### ZASTOSTOWANIE FILTRÓW
 st.subheader("ŚREDNIA EFEKTYWNOŚĆ (%)")
 st.markdown("""
-Po lewej stronie możesz skorzystać z dostępnych filtrów.
-Po ich zmianie dane w tabeli poniżej zostaną automatycznie odświeżone
+⬅️ **Po lewej stronie** możesz skorzystać z dostępnych filtrów.  
+Po ich zmianie dane w tabeli poniżej zostaną automatycznie odświeżone.
 """)
 mask_tapicerzy = df_final['nazwisko'].isin(tapicer_filtr)
 total = df_final[mask_tapicerzy].shape[0]
@@ -176,6 +174,15 @@ pivot_count = filtered_df_final.pivot_table(
 )
 pivot_count[pivot_count < 10] = np.nan
 
+# PIVOT SUMY CZASU PO ZASTOSOWANIU FILTRÓW
+pivot_time = filtered_df_final.pivot_table(
+    index='model',
+    columns='nazwisko',
+    values='czas_poprawiony',
+    aggfunc='sum'
+)
+pivot_time[pd.isna(pivot_count)] = np.nan
+
 
 # PIVOT Z ŚREDNIEJ PO ZASTOSOWANIU FILTRÓW
 pivot_mean = filtered_df_final.pivot_table(
@@ -185,16 +192,12 @@ pivot_mean = filtered_df_final.pivot_table(
     aggfunc='mean'
 )
 pivot_mean[pd.isna(pivot_count)] = np.nan
-pivot_mean = pivot_mean * 100
-pivot_mean = pivot_mean.round(0)
-pivot_count = pivot_count.dropna(how='all')
-pivot_count = pivot_count.dropna(axis=1, how='all')
-pivot_mean = pivot_mean.dropna(how='all')
-pivot_mean = pivot_mean.dropna(axis=1, how='all')
-# st.write("Pivot_count")
-# st.write(pivot_count)
-# st.write("Pivot_mean")
-# st.write(pivot_mean)
+
+pivot_mean = (pivot_mean * 100).round(0)
+pivot_count = utils.clean_pivot_df(pivot_count)
+pivot_mean = utils.clean_pivot_df(pivot_mean)
+pivot_time = utils.clean_pivot_df(pivot_time)
+
 
 # ZASTOSOWANIE FILTRU NA DF_FINAL, BY WYDOBYC WARTOSCI Z ZASTOSOWANYM PRZEDZIALEM EFEKTYWNOSCI Z FILTRU, BY POKAZAC ILE WARTOSCI LACZNIE JEST DLA WYBRANYCH PAR
 valid_pairs = pivot_count[~pd.isna(pivot_count)].stack().index.tolist()
@@ -254,19 +257,6 @@ pivot_mean['powyzej_efektywnosc'] = pivot_mean['powyzej_efektywnosc'].fillna(0).
 # st.dataframe(pivot_mean)
 
 
-
-def highlight_nan(val):
-    if pd.isna(val):
-        return 'background-color: lightgray'
-    return ''
-def highlight_above(val, number):
-    if isinstance(val, (int, float)) and val > number:
-        return 'background-color: yellow'
-    return ''
-def highlight_below(val, number):
-    if isinstance(val, (int, float)) and val < number:
-        return 'background-color: yellow'
-    return ''
 column_width = '120px'
 
 pivot_mean = pivot_mean.rename(columns={
@@ -289,10 +279,10 @@ for row in tooltip_df.index:
 
         tooltip_df.at[row, col] = tooltip
 styled_pivot_mean = pivot_mean.style \
-    .applymap(lambda val: highlight_above(val, 20), subset=columns_less_more) \
-    .applymap(lambda val: highlight_above(val, 155), subset=[col for col in pivot_mean.columns if col not in columns_less_more]) \
-    .applymap(lambda val: highlight_below(val, 120), subset=[col for col in pivot_mean.columns if col not in columns_less_more]) \
-    .applymap(highlight_nan) \
+    .applymap(lambda val: utils.highlight_above(val, 20), subset=columns_less_more) \
+    .applymap(lambda val: utils.highlight_above(val, 155), subset=[col for col in pivot_mean.columns if col not in columns_less_more]) \
+    .applymap(lambda val: utils.highlight_below(val, 120), subset=[col for col in pivot_mean.columns if col not in columns_less_more]) \
+    .applymap(utils.highlight_nan) \
     .format("{:.0f}") \
     .set_tooltips(tooltip_df) \
     .set_table_styles([
@@ -323,7 +313,7 @@ filtry = {
     "Tapicerzy": ", ".join(tapicer_filtr) if tapicer_filtr else "wszyscy"
 }
 def to_excel(df, filtry: dict):
-    output = BytesIO()
+    output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         workbook = writer.book
         worksheet = workbook.add_worksheet('Efektywność')
@@ -347,13 +337,30 @@ def to_excel(df, filtry: dict):
 
     output.seek(0)
     return output
-excel_file = to_excel(pivot_mean, filtry)
+excel_file_efektywnosc = to_excel(pivot_mean, filtry)
 st.download_button(
-    label="📥 Pobierz tabelę jako Excel",
-    data=excel_file,
+    label="📥 Pobierz tabelę efektywności jako Excel",
+    data=excel_file_efektywnosc,
     file_name="efektywnosc_tapicerow.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
+
+excel_file_liczebnosc = to_excel(pivot_count, filtry)
+st.download_button(
+    label="📥 Pobierz tabelę liczebności jako Excel",
+    data=excel_file_liczebnosc,
+    file_name="efektywnosc_tapicerow.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+excel_file_czas = to_excel(pivot_time, filtry)
+st.download_button(
+    label="📥 Pobierz tabelę czasu jako Excel",
+    data=excel_file_czas,
+    file_name="efektywnosc_tapicerow.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
 
 
 
@@ -381,7 +388,7 @@ st.dataframe(top_pary_efektywnosc, use_container_width=True)
 
 
 
-
+st.subheader("MEDIANA EFEKTYWNOŚCI")
 pivot_df_valid_all_median = df_valid.pivot_table(
     index='model',
     columns='nazwisko',
@@ -392,15 +399,29 @@ pivot_df_valid_all_median = pivot_df_valid_all_median * 100
 pivot_df_valid_all_median = pivot_df_valid_all_median.round(0)
 
 styled_pivot_median = pivot_df_valid_all_median.style \
-    .applymap(lambda val: highlight_above(val, 155), subset=[col for col in pivot_mean.columns if col not in columns_less_more]) \
-    .applymap(lambda val: highlight_below(val, 120), subset=[col for col in pivot_mean.columns if col not in columns_less_more]) \
-    .applymap(highlight_nan) \
+    .applymap(lambda val: utils.highlight_above(val, 20), subset=columns_less_more) \
+    .applymap(lambda val: utils.highlight_above(val, 155), subset=[col for col in pivot_mean.columns if col not in columns_less_more]) \
+    .applymap(lambda val: utils.highlight_below(val, 120), subset=[col for col in pivot_mean.columns if col not in columns_less_more]) \
+    .applymap(utils.highlight_nan) \
     .format("{:.0f}") \
+    .set_tooltips(tooltip_df) \
     .set_table_styles([
-        {'selector': 'th', 'props': [('white-space', 'normal'), ('word-wrap', 'break-word'), ('text-align', 'center'), ('width', '180px')]},
-        {'selector': 'td', 'props': [('text-align', 'center'), ('width', '180px')]}
+        {'selector': 'th', 'props': [
+            ('white-space', 'normal'),
+            ('word-wrap', 'break-word'),
+            ('text-align', 'center'),
+            ('width', '180px'),
+            ('background-color', '#e6f2ff')  # Jasnoniebieskie tło dla nagłówków
+        ]},
+        {'selector': 'td', 'props': [
+            ('text-align', 'center'),
+            ('width', '180px')
+        ]},
+        {'selector': 'td:first-child', 'props': [
+            ('background-color', '#e6f2ff')  # Jasnoniebieskie tło dla pierwszej kolumny
+        ]}
     ])
-#st.markdown(styled_pivot_median.to_html(), unsafe_allow_html=True)
+st.markdown(styled_pivot_median.to_html(), unsafe_allow_html=True)
 
 
 
@@ -450,12 +471,10 @@ if df_mnk.empty:
 
 
 
-# Macierz brył (0/1)
+# Macierz brył
 bryly_unikalne = sorted(set(";".join(df_mnk["komisja_srednik"]).split(";")))
-# st.write("bryly unikalne", bryly_unikalne)
 bryly_unikalne = [b.strip() for b in bryly_unikalne]
 bryly_unikalne = list(set([b.strip() for b in bryly_unikalne]))
-# st.write("bryly unikalne po strip", bryly_unikalne)
 for b in bryly_unikalne:
     df_mnk[b] = df_mnk["komisja"].apply(lambda x: x.count(b) if isinstance(x, list) else 0)
 
@@ -466,19 +485,12 @@ df_mnk_cleaned = df_mnk.copy()
 for col in df_mnk_cleaned.columns:
     df_mnk_cleaned[col] = df_mnk_cleaned[col].apply(make_hashable)
 
-# lista duplikatów
-duplicates = [x for x in bryly_unikalne if bryly_unikalne.count(x) > 1]
-duplicates = list(set(duplicates))
-
-
 # Dane do regresji
 X = df_mnk[bryly_unikalne]
 y = df_mnk["czas_poprawiony"]
 
 # Regresja MNK
 model_ols = sm.OLS(y, X).fit()
-
-# st.write(model_ols)
 
 def ols_table_to_df(model_ols):
     html = model_ols.summary().tables[1].as_html()
@@ -524,3 +536,69 @@ ax.set_xlabel("Rzeczywisty czas komisji")
 ax.set_ylabel("Przewidziany czas komisji")
 ax.set_title("Dopasowanie modelu")
 st.pyplot(fig)
+
+
+### ANALIZA METODA RIDGE
+from sklearn.linear_model import RidgeCV
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+# Standaryzacja zmiennych
+X_std = (X - X.mean()) / X.std()
+
+# Regresja Ridge z walidacją krzyżową
+model_ridge = RidgeCV(alphas=[0.01, 0.1, 1.0, 10.0], cv=5)
+model_ridge.fit(X_std, y)
+
+# Szacowane czasy brył
+czas_bryl_ridge = pd.Series(model_ridge.coef_, index=X.columns)
+czas_bryl_df = czas_bryl_ridge.to_frame("Czas rzeczywisty")
+czas_bryl_df.index.name = "Bryła"
+
+st.subheader("📏 Szacowane czasy tapicerowania (Ridge)")
+st.dataframe(czas_bryl_df)
+
+# Przewidywane wartości
+y_pred = model_ridge.predict(X_std)
+df_mnk["czas_przewidziany"] = y_pred
+
+# Błędy oszacowania
+# Wyliczamy przybliżone standard errors (uwaga: tylko aproksymacja!)
+resid = y - y_pred
+sigma2 = np.var(resid, ddof=len(X.columns))
+XtX_inv = np.linalg.inv(np.dot(X_std.T, X_std))
+standard_errors = np.sqrt(np.diag(sigma2 * XtX_inv))
+errors_df = pd.DataFrame({
+    "Czas": model_ridge.coef_,
+    "Błąd std": standard_errors
+}, index=X.columns)
+
+st.subheader("📉 Współczynniki Ridge i błędy standardowe")
+st.dataframe(errors_df)
+
+# Tabela porównawcza rzeczywisty vs przewidziany
+df_porownanie = df_mnk[["czas_poprawiony", "czas_przewidziany"]].copy()
+df_porownanie["Błąd bezwzględny"] = abs(df_porownanie["czas_poprawiony"] - df_porownanie["czas_przewidziany"])
+
+st.subheader("🔍 Porównanie: rzeczywisty vs przewidziany czas komisji")
+st.dataframe(df_porownanie.head(20))  # można ograniczyć do top N
+
+# Wykres dopasowania
+fig, ax = plt.subplots()
+ax.scatter(df_mnk["czas_poprawiony"], df_mnk["czas_przewidziany"], alpha=0.7)
+ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', label="Idealne dopasowanie")
+ax.set_xlabel("Rzeczywisty czas")
+ax.set_ylabel("Przewidziany czas")
+ax.set_title("Dopasowanie modelu Ridge")
+ax.legend()
+st.pyplot(fig)
+
+# Statystyki modelu
+mae = mean_absolute_error(y, y_pred)
+rmse = np.sqrt(mean_squared_error(y, y_pred))
+r2 = r2_score(y, y_pred)
+
+st.subheader("📊 Statystyki dopasowania Ridge")
+st.markdown(f"- **MAE (średni błąd bezwzględny):** {mae:.2f}")
+st.markdown(f"- **RMSE (pierwiastek błędu średniokwadratowego):** {rmse:.2f}")
+st.markdown(f"- **R² (współczynnik determinacji):** {r2:.3f}")
+st.markdown(f"- **Alpha wybrane przez CV:** {model_ridge.alpha_}")
